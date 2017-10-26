@@ -14,6 +14,7 @@
 
 
 #define THREAD_MULTIPLE 32
+#define PI 3.1415f
 
 // std include files
 #include <iostream>

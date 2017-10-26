@@ -93,32 +93,32 @@ HostTimeRecorder::~HostTimeRecorder()
 {}
 
 
-CUDA_EXPORTS class AdvancedHostTimeRecorder : public TimeRecorder
-{
-private:
-    std::chrono::time_point<std::chrono::system_clock> start, end;
-public:
-    AdvancedHostTimeRecorder();
-    virtual void startRecord();
-    virtual void stopRecord();
-    virtual float timeCost();
-    ~AdvancedHostTimeRecorder();
-};
-
-AdvancedHostTimeRecorder::AdvancedHostTimeRecorder()
-{
-
-}
-
-void AdvancedHostTimeRecorder::startRecord()
-{
-    start = std::chrono::system_clock::now();
-}
-
-void AdvancedHostTimeRecorder::stopRecord()
-{
-    end = std::chrono::system_clock::now();
-}
+//CUDA_EXPORTS class AdvancedHostTimeRecorder : public TimeRecorder
+//{
+//private:
+//    std::chrono::time_point<std::chrono::system_clock> start, end;
+//public:
+//    AdvancedHostTimeRecorder();
+//    virtual void startRecord();
+//    virtual void stopRecord();
+//    virtual float timeCost();
+//    ~AdvancedHostTimeRecorder();
+//};
+//
+//AdvancedHostTimeRecorder::AdvancedHostTimeRecorder()
+//{
+//
+//}
+//
+//void AdvancedHostTimeRecorder::startRecord()
+//{
+//    start = std::chrono::system_clock::now();
+//}
+//
+//void AdvancedHostTimeRecorder::stopRecord()
+//{
+//    end = std::chrono::system_clock::now();
+//}
 
 
 //float AdvancedHostTimeRecorder::timeCost()

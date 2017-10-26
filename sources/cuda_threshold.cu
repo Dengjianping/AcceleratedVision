@@ -17,8 +17,8 @@ __global__ void threshold(uchar *input, int height, int width, uchar *output, uc
 
     // use blockDim.y*gridDim.y or blockDim.x*gridDim.x to retrieve elements, increasing ILP level, and memory accessing is coalesced.
     // visit this post, https://devblogs.nvidia.com/parallelforall/cuda-pro-tip-write-flexible-kernels-grid-stride-loops/
-    for (uint i = row; i < height / 4; i += blockDim.y*gridDim.y) // stride by 4 byte
-        for (uint j = col; j < width; j += blockDim.x*gridDim.x)
+    for (int i = row; i < height / 4; i += blockDim.y*gridDim.y) // stride by 4 byte
+        for (int j = col; j < width; j += blockDim.x*gridDim.x)
         {
             // because use uchar, I just get 25% loading efficiency on global memory, a warp only request only 32 bytes, but ideally 128 bytes.
             // There's a post from CUDA blog, https://devblogs.nvidia.com/parallelforall/cuda-pro-tip-increase-performance-with-vectorized-memory-access/
