@@ -13,4 +13,7 @@ CUDA_EXPORTS void cudaADD(const cv::Mat & input1, const cv::Mat & input2, cv::Ma
 
 CUDA_EXPORTS void cudaSqrt(const cv::Mat & input, cv::Mat & output);
 
+
+CUDA_EXPORTS void cudaAND(const cv::Mat & input1, const cv::Mat & input2, cv::Mat & output);
+
 #endif

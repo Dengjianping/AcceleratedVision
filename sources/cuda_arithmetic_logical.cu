@@ -234,3 +234,79 @@ void cudaSqrt(const cv::Mat & input, cv::Mat & output)
     CUDA_CALL(cudaStreamDestroy(stream));
     CUDA_CALL(cudaFree(d_input)); CUDA_CALL(cudaFree(d_output));
 }
+
+
+__global__ void and_one_channel(uchar *d_input1, uchar *d_input2, int height, int width, uchar *d_output)
+{
+    int row = blockDim.y*blockIdx.y + threadIdx.y;
+    int col = blockDim.x*blockIdx.x + threadIdx.x;
+
+    auto add_pixels = [](uchar4 *a, uchar4 *b)
+    {
+        uchar m = a->x & b->x;
+        uchar n = a->y & b->y;
+        uchar p = a->z & b->z;
+        uchar q = a->w & b->w;
+        m = m > 255 ? 255 : m;
+        n = m > 255 ? 255 : n;
+        p = m > 255 ? 255 : p;
+        q = m > 255 ? 255 : q;
+        return make_uchar4(m, n, p, q);
+    };
+
+    // use blockDim.y*gridDim.y or blockDim.x*gridDim.x to retrieve elements, increasing ILP level, and memory accessing is coalesced.
+    // visit this post, https://devblogs.nvidia.com/parallelforall/cuda-pro-tip-write-flexible-kernels-grid-stride-loops/
+    for (uint i = row; i < height / 4; i += blockDim.y*gridDim.y) // stride by 4 byte
+        for (uint j = col; j < width; j += blockDim.x*gridDim.x)
+        {
+            // because use uchar, I just get 25% loading efficiency on global memory, a warp only request only 32 bytes, but ideally 128 bytes.
+            // There's a post from CUDA blog, https://devblogs.nvidia.com/parallelforall/cuda-pro-tip-increase-performance-with-vectorized-memory-access/
+            // as result, it benefit a lot performance improvement.
+            uchar4 temp = reinterpret_cast<uchar4*>(d_input1)[i*width + j];
+            uchar4 temp1 = reinterpret_cast<uchar4*>(d_input2)[i*width + j];
+            reinterpret_cast<uchar4*>(d_output)[i*width + j] = add_pixels(&temp, &temp1);
+        }
+}
+
+
+void cudaAND(const cv::Mat & input1, const cv::Mat & input2, cv::Mat & output)
+{
+    if (input1.channels() != input2.channels())return;
+    if (input1.size() != input2.size())return;
+    int channel = input1.channels();
+
+    // define block size and
+    dim3 block_size(THREAD_MULTIPLE, 6);
+    // divide the image into 16 grids, smaller grid do more things, improve performance a lot.
+    dim3 grid_size(input1.cols / (4 * block_size.x), input1.rows / (4 * block_size.y));
+
+    uchar *d_input1, *d_input2, *d_output;
+    cudaStream_t stream; cudaStreamCreate(&stream);
+
+    cudaMalloc(&d_input1, channel * sizeof(uchar)*input1.cols*input1.rows);
+    cudaMalloc(&d_input2, channel * sizeof(uchar)*input2.cols*input2.rows);
+    cudaMalloc(&d_output, channel * sizeof(uchar)*input2.cols*input2.rows);
+    cudaMemcpyAsync(d_input1, input1.data, channel * sizeof(uchar)*input1.rows*input1.cols, cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(d_input2, input2.data, channel * sizeof(uchar)*input2.rows*input2.cols, cudaMemcpyHostToDevice, stream);
+
+    switch (channel)
+    {
+    case 1:
+        output = cv::Mat(input1.size(), input1.type(), cv::Scalar(0));
+        and_one_channel <<<grid_size, block_size, 0, stream>>> (d_input1, d_input2, input1.rows, input1.cols, d_output);
+        cudaDeviceSynchronize();
+        break;
+    case 3:
+        output = cv::Mat(input1.size(), input1.type(), cv::Scalar(0, 0, 0));
+        add_three_channel <<<grid_size, block_size, 0, stream>>> (d_input1, d_input2, input1.rows, input1.cols, d_output);
+        cudaDeviceSynchronize();
+        break;
+    default:
+        break;
+    }
+
+    cudaMemcpy(output.data, d_output, channel * sizeof(uchar)*input1.rows*input2.cols, cudaMemcpyDeviceToHost);
+
+    CUDA_CALL(cudaStreamDestroy(stream));
+    CUDA_CALL(cudaFree(d_input1)); CUDA_CALL(cudaFree(d_input2)); CUDA_CALL(cudaFree(d_output));
+}
