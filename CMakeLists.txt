@@ -27,6 +27,8 @@ if(WIN32)
         ${PROJECT_SOURCE_DIR}/sources/cuda_sum.cu
         ${PROJECT_SOURCE_DIR}/sources/cuda_threshold.cu
         ${PROJECT_SOURCE_DIR}/sources/cuda_transform.cu
+        ${PROJECT_SOURCE_DIR}/sources/cuda_warpaffine.cu
+        ${PROJECT_SOURCE_DIR}/sources/cuda_bordering.cu
     )
     target_link_libraries(accel_vision ${DEPENDENCY_LIB})
     
