@@ -29,6 +29,7 @@ if(WIN32)
         ${PROJECT_SOURCE_DIR}/sources/cuda_transform.cu
         ${PROJECT_SOURCE_DIR}/sources/cuda_warpaffine.cu
         ${PROJECT_SOURCE_DIR}/sources/cuda_bordering.cu
+        ${PROJECT_SOURCE_DIR}/sources/cuda_erode.cu
     )
     target_link_libraries(accel_vision ${DEPENDENCY_LIB})
     
