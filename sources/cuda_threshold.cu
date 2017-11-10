@@ -1,16 +1,16 @@
 #include "..\include\cuda_threshold.h"
 
 
-__device__ void binarization(uchar4 *input, uchar thresh_value)
+__device__ void binarization(uchar4 *input, uchar thresh, uchar max_value)
 {
-    input->x = input->x < thresh_value ? (uchar)0 : (uchar)255;
-    input->y = input->y < thresh_value ? (uchar)0 : (uchar)255;
-    input->z = input->z < thresh_value ? (uchar)0 : (uchar)255;
-    input->w = input->w < thresh_value ? (uchar)0 : (uchar)255;
+    input->x = input->x < thresh ? 0 : max_value;
+    input->y = input->y < thresh ? 0 : max_value;
+    input->z = input->z < thresh ? 0 : max_value;
+    input->w = input->w < thresh ? 0 : max_value;
 }
 
 
-__global__ void threshold(uchar *input, int height, int width, uchar *output, uchar threshold_value)
+__global__ void threshold(uchar *input, int height, int width, uchar thresh, uchar max_value, uchar *output)
 {
     int row = blockDim.y*blockIdx.y + threadIdx.y;
     int col = blockDim.x*blockIdx.x + threadIdx.x;
@@ -23,18 +23,17 @@ __global__ void threshold(uchar *input, int height, int width, uchar *output, uc
             // because use uchar, I just get 25% loading efficiency on global memory, a warp only request only 32 bytes, but ideally 128 bytes.
             // There's a post from CUDA blog, https://devblogs.nvidia.com/parallelforall/cuda-pro-tip-increase-performance-with-vectorized-memory-access/
             // as result, it benefit a lot performance improvement.
-            uchar4 temp = reinterpret_cast<uchar4*>(input)[i*width + j];
-            binarization(&temp, threshold_value);
-            reinterpret_cast<uchar4*>(output)[i*width + j] = temp;
+            uchar4 p = reinterpret_cast<uchar4*>(input)[i*width + j];
+            binarization(&p, thresh, max_value);
+            reinterpret_cast<uchar4*>(output)[i*width + j] = p;
         }
 }
 
 
 //extern "C"
-void cudaThreshold(const cv::Mat & input, cv::Mat & output, float threshold_value)
+void cudaThreshold(const cv::Mat & input, uchar thresh, uchar max_value, cv::Mat & output)
 {
-    if (threshold_value < 0.0f)threshold_value = 0.0f;
-    if (threshold_value > 255.0f)threshold_value = 255.0f;
+    if (max_value > 255)max_value = 255;
     output = cv::Mat(input.size(), CV_8U, cv::Scalar(0));
     // define block size and
     dim3 block_size(THREAD_MULTIPLE, 6);
@@ -49,7 +48,7 @@ void cudaThreshold(const cv::Mat & input, cv::Mat & output, float threshold_valu
     CUDA_CALL(cudaMalloc(&d_output, sizeof(uchar)*input.cols*input.rows));
 
     // calling kernel
-    threshold <<<grid_size, block_size, 0, stream>>> (d_input, input.rows, input.cols, d_output, threshold_value);
+    threshold <<<grid_size, block_size, 0, stream>>> (d_input, input.rows, input.cols, thresh, max_value, d_output);
     CUDA_CALL(cudaDeviceSynchronize());
 
     CUDA_CALL(cudaMemcpy(output.data, d_output, sizeof(uchar)*output.cols*output.rows, cudaMemcpyDeviceToHost));
