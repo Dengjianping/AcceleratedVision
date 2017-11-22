@@ -1,9 +1,7 @@
 #include "..\include\cuda_sobel.h"
 
 
-#define K_SIZE 3
-#define RADIUS 1
-//#define FAST_MATH
+enum GRADIENT_DIRECTION { X, Y };
 
 
 /*
@@ -12,11 +10,12 @@ so we can convolve image using row-wised and column-wised kernel;
 of cause there're lots of filters can be separed or not.
 follow this link, list some common filters, https://dsp.stackexchange.com/questions/7586/common-use-cases-for-2d-nonseparable-convolution-filters
 */
-__constant__ float sobelKernelXC[K_SIZE][K_SIZE] = { { -1.0f,0.0f,1.0f },{ -2.0f,0.0f,2.0f },{ -1.0f,0.0f,1.0f } };
-__constant__ float sobelKernelYC[K_SIZE][K_SIZE] = { { -1.0f,-2.0f,-1.0f },{ 0.0f,0.0f,0.0f },{ 1.0f,2.0f,1.0f } };
+__constant__ float sobelKernelXC[3][3] = { { -1.0f,0.0f,1.0f },{ -2.0f,0.0f,2.0f },{ -1.0f,0.0f,1.0f } };
+__constant__ float sobelKernelYC[3][3] = { { -1.0f,-2.0f,-1.0f },{ 0.0f,0.0f,0.0f },{ 1.0f,2.0f,1.0f } };
 
 
-__global__ void sobel(uchar *d_input, int height, int width, uchar *d_output)
+template<GRADIENT_DIRECTION direction, int RADIUS>
+__global__ void sobel_gradient(uchar *d_input, int height, int width, uchar *d_output)
 {
     int row = blockDim.y*blockIdx.y + threadIdx.y;
     int col = 4 * blockDim.x*blockIdx.x + threadIdx.x; // each thread handle 4 pixels
@@ -73,47 +72,73 @@ __global__ void sobel(uchar *d_input, int height, int width, uchar *d_output)
 
         __syncthreads();
 
-        float sumx = 0.0f, sumy = 0.0f, sumx_32 = 0.0f, sumy_32 = 0.0f, sumx_64 = 0.0f, sumy_64 = 0.0f, sumx_96 = 0.0f, sumy_96 = 0.0f;
+        float sum = 0.0f, sum_32 = 0.0f, sum_64 = 0.0f, sum_96 = 0.0f;
         for (int i = -RADIUS; i <= RADIUS; i++)
             for (int j = -RADIUS; j <= RADIUS; j++)
             {
-                /* sumx += sobelKernelXC[1 + i][1 + j] * smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j];
-                sumy += sobelKernelYC[1 + i][1 + j] * smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j];
-                sumx_32 += sobelKernelXC[1 + i][1 + j] * smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 32];
-                sumy_32 += sobelKernelYC[1 + i][1 + j] * smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 32];
-                sumx_64 += sobelKernelXC[1 + i][1 + j] * smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 64];
-                sumy_64 += sobelKernelYC[1 + i][1 + j] * smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 64];
-                sumx_96 += sobelKernelXC[1 + i][1 + j] * smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 96];
-                sumy_96 += sobelKernelYC[1 + i][1 + j] * smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 96];*/
-
-                sumx = fmaf(sobelKernelXC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j], sumx);
-                sumy = fmaf(sobelKernelYC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j], sumy);
-                sumx_32 = fmaf(sobelKernelXC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 32], sumx_32);
-                sumy_32 = fmaf(sobelKernelYC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 32], sumy_32);
-                sumx_64 = fmaf(sobelKernelXC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 64], sumx_64);
-                sumy_64 = fmaf(sobelKernelYC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 64], sumy_64);
-                sumx_96 = fmaf(sobelKernelXC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 96], sumx_96);
-                sumy_96 = fmaf(sobelKernelYC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 96], sumy_96);
+                if (direction)
+                {
+                    // y direction
+                    sum = fmaf(sobelKernelYC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j], sum);
+                    sum_32 = fmaf(sobelKernelYC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 32], sum_32);
+                    sum_64 = fmaf(sobelKernelYC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 64], sum_64);
+                    sum_96 = fmaf(sobelKernelYC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 96], sum_96);
+                }
+                else
+                {
+                    // x direction
+                    sum = fmaf(sobelKernelXC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j], sum);
+                    sum_32 = fmaf(sobelKernelXC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 32], sum_32);
+                    sum_64 = fmaf(sobelKernelXC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 64], sum_64);
+                    sum_96 = fmaf(sobelKernelXC[RADIUS + i][RADIUS + j], smem[threadIdx.y + RADIUS - i][threadIdx.x + RADIUS - j + 96], sum_96);
+                }
             }
 
-        auto gradient = [](float *a, float *b)
-        {
-        #ifndef FAST_MATH
-            float x = powf(*a, 2.0f);
-            float y = powf(*b, 2.0f);
-            return sqrtf(x + y);
-        #else
-            float x = __powf(*a, 2.0f);
-            float y = __powf(*b, 2.0f);
-            return sqrtf(x + y);
-        #endif
-        };
-
-        d_output[index] = gradient(&sumx, &sumy);
-        d_output[index + 32] = gradient(&sumx_32, &sumy_32);
-        d_output[index + 64] = gradient(&sumx_64, &sumy_64);
-        d_output[index + 96] = gradient(&sumx_96, &sumy_96);
+        d_output[index] = sum;
+        d_output[index + 32] = sum_32;
+        d_output[index + 64] = sum_64;
+        d_output[index + 96] = sum_96;
     }
+}
+
+
+__global__ void sobel_get_amplitude(uchar *gradient_x, uchar *gradient_y, int height, int width, uchar *amplitude)
+{
+    int row = blockDim.y*blockIdx.y + threadIdx.y;
+    int col = blockDim.x*blockIdx.x + threadIdx.x;
+
+    auto saturate_uchar = [](const float & p)
+    {
+        uchar q = (uchar)(p > 255.0f ? 255 : p);
+        return q;
+    };
+
+    auto calc_amplitude = [](const uchar4 *x, const uchar4 *y)
+    {
+        float amp_x = __powf(x->x, 2.0f) + __powf(y->x, 2.0f);
+        float amp_y = __powf(x->y, 2.0f) + __powf(y->y, 2.0f);
+        float amp_z = __powf(x->z, 2.0f) + __powf(y->z, 2.0f);
+        float amp_w = __powf(x->w, 2.0f) + __powf(y->w, 2.0f);
+        amp_x = sqrtf(amp_x);
+        amp_y = sqrtf(amp_y);
+        amp_z = sqrtf(amp_z);
+        amp_w = sqrtf(amp_w);
+        uchar u_x = (uchar)(amp_x > 255.0f ? 255 : amp_x);
+        uchar u_y = (uchar)(amp_y > 255.0f ? 255 : amp_y);
+        uchar u_z = (uchar)(amp_z > 255.0f ? 255 : amp_z);
+        uchar u_w = (uchar)(amp_w > 255.0f ? 255 : amp_w);
+        return make_uchar4(u_x, u_y, u_z, u_w);
+    };
+
+    for (int i = row; i < height / 4; i += blockDim.y*gridDim.y) // stride by 4 byte
+        for (int j = col; j < width; j += blockDim.x*gridDim.x)
+        {
+            int index = i*width + j;
+            auto x = reinterpret_cast<uchar4*>(gradient_x)[index];
+            auto y = reinterpret_cast<uchar4*>(gradient_y)[index];
+
+            reinterpret_cast<uchar4*>(amplitude)[index] = calc_amplitude(&x, &y);
+        }
 }
 
 
@@ -122,21 +147,31 @@ void cudaSobel(const cv::Mat & input, cv::Mat & output)
     if (input.channels() != 1)return;
     output = cv::Mat(input.size(), input.type(), cv::Scalar(0));
 
-    cudaStream_t stream; CUDA_CALL(cudaStreamCreate(&stream));
+    cudaStream_t stream_x, stream_y; 
+    CUDA_CALL(cudaStreamCreate(&stream_x)); CUDA_CALL(cudaStreamCreate(&stream_y));
 
     uchar *d_input, *d_output;
-    cudaMalloc(&d_input, sizeof(uchar)*input.rows*input.cols);
-    cudaMemcpyAsync(d_input, input.data, sizeof(uchar)*input.rows*input.cols, cudaMemcpyHostToDevice, stream);
-    cudaMalloc(&d_output, sizeof(uchar)*input.rows*input.cols);
+    CUDA_CALL(cudaMalloc(&d_input, sizeof(uchar)*input.rows*input.cols));
+    CUDA_CALL(cudaMemcpyAsync(d_input, input.data, sizeof(uchar)*input.rows*input.cols, cudaMemcpyHostToDevice, stream_x));
+    CUDA_CALL(cudaMalloc(&d_output, sizeof(uchar)*input.rows*input.cols));
+
+    // gradient matrix
+    uchar *gradient_x, *gradient_y;
+    CUDA_CALL(cudaMalloc(&gradient_x, sizeof(uchar)*input.rows*input.cols));
+    CUDA_CALL(cudaMalloc(&gradient_y, sizeof(uchar)*input.rows*input.cols));
 
     // define block size and
     dim3 block_size(THREAD_MULTIPLE, 6);
     // divide the image into 16 grids, smaller grid do more things, improve performance a lot.
     dim3 grid_size(input.cols / (4 * block_size.x), input.rows / (4 * block_size.y));
 
-    sobel <<<grid_size, block_size, 0, stream>>>(d_input, input.rows, input.cols, d_output);
-    cudaDeviceSynchronize();
+    sobel_gradient<X, 1> <<<grid_size, block_size, 0, stream_x>>> (d_input, input.rows, input.cols, gradient_x);
+    sobel_gradient<Y, 1> <<<grid_size, block_size, 0, stream_y>>> (d_input, input.rows, input.cols, gradient_y);
+    CUDA_CALL(cudaStreamSynchronize(stream_y));
+    sobel_get_amplitude <<<grid_size, block_size, 0, stream_x>>>(gradient_x, gradient_y, input.rows, input.cols, d_output);
+    CUDA_CALL(cudaDeviceSynchronize());
 
-    cudaMemcpyAsync(output.data, d_output, sizeof(uchar)*input.rows*input.cols, cudaMemcpyDeviceToHost, stream);
-    cudaFree(d_input); cudaFree(d_output); cudaStreamDestroy(stream);
+    CUDA_CALL(cudaMemcpy(output.data, d_output, sizeof(uchar)*input.rows*input.cols, cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaFree(d_input)); CUDA_CALL(cudaFree(d_output)); CUDA_CALL(cudaFree(gradient_x)); CUDA_CALL(cudaFree(gradient_y));
+    CUDA_CALL(cudaStreamDestroy(stream_x)); CUDA_CALL(cudaStreamDestroy(stream_y));
 }
