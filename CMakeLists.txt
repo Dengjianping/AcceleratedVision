@@ -31,6 +31,9 @@ if(WIN32)
         ${PROJECT_SOURCE_DIR}/sources/cuda_bordering.cu
         ${PROJECT_SOURCE_DIR}/sources/cuda_erode.cu
         ${PROJECT_SOURCE_DIR}/sources/cuda_lut.cu
+        ${PROJECT_SOURCE_DIR}/sources/cuda_merge.cu
+        ${PROJECT_SOURCE_DIR}/sources/cuda_laplace.cu
+        ${PROJECT_SOURCE_DIR}/sources/cuda_log.cu
     )
     target_link_libraries(accel_vision ${DEPENDENCY_LIB})
     
