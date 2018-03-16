@@ -6,50 +6,45 @@ class DLL:
     def __init__(self, path):
         self.dll = ctypes.cdll.LoadLibrary(path)
 
-class SimpleMath(DLL):
+
+class Theshold(DLL):
     def __init__(self, path):
-        DLL.__init__(self, path)
+        super().__init__(path)
 
-    def sub(self, a, b):
-        a = ctypes.c_int(a)
-        b = ctypes.c_int(b)
-        self.dll.sub.retypes = ctypes.c_int
-        result = self.dll.sub(a, b)
+
+    def test_cudaThreshold(self, input_path, thresh, max_value):
+        # https://github.com/rfk/pyenchant/issues/45
+        # TypeError: bytes or integer address expected instead of str i nstance
+        input_path = ctypes.c_char_p(bytes(input_path, 'utf-8'))
+        thresh = ctypes.c_char(thresh)
+        max_value = ctypes.c_char(max_value)
+        self.dll.test_cudaThreshold.argtype = [ctypes.c_char_p, ctypes.c_char, ctypes.c_char]
+        self.dll.test_cudaThreshold.retypes = ctypes.c_bool
+        result = self.dll.test_cudaThreshold(input_path, thresh, max_value)
         return result
 
-    def add(self, a, b):
-        a = ctypes.c_int(a)
-        a = ctypes.pointer(a)
-        b = ctypes.c_int(b)
-        b = ctypes.pointer(b)
-        self.dll.add.retypes = ctypes.c_int
-        result = self.dll.add(a, b)
-        return result
 
-class TestMath(unittest.TestCase):
+class TestTheshold(unittest.TestCase):
     def setUp(self):
-        try:
-            self.test_dll = SimpleMath(os.path.join(os.path.dirname(__file__), 'x64', 'Debug', 'TestDLL.dll'))
-        except:
-            self.test_dll = SimpleMath(os.path.join(os.path.dirname(__file__), 'Debug', 'TestDLL.dll'))
+        self.test_dll = Theshold(os.path.join(os.path.dirname(__file__), r'build/Release/test_accel_vision.dll'))
+        self.image_path = "images/2048.jpg"
 
-    def testSub(self):
-        a, b = 90, 5
-        self.assertEqual(85, self.test_dll.sub(a, b))
+    
+    def test_cudaThreshold(self):
+        thresh, max_value = 50, 200
+        self.assertEqual(True, self.test_dll.test_cudaThreshold(self.image_path, thresh, max_value))
+
 
     @unittest.expectedFailure
-    def testSub(self):
-        a, b = 90, 5
-        self.assertEqual(30, self.test_dll.sub(a, b))
+    def test_cudaThreshold(self):
+        thresh, max_value = -50, 2000
+        self.assertEqual(False, self.test_dll.test_cudaThreshold(self.image_path, thresh, max_value))
 
-    def testAdd(self):
-        a, b = 34, 6
-        self.assertEqual(40, self.test_dll.add(a, b))
 
     def tearDown(self):
         self.test_dll = None
 
 
 if __name__ == '__main__':
-    suite1 = unittest.TestLoader().loadTestsFromTestCase(TestMath)
-    unittest.TextTestRunner(verbosity=2).run(suite1)
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestTheshold)
+    unittest.TextTestRunner(verbosity=2).run(suite)
