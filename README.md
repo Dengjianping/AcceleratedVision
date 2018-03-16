@@ -81,6 +81,7 @@ cudaSobel | sobel operator to extract edges
 cudaHistogram | histogram for a image
 cudaEqualizeHist | equalize a image
 cudaADD/OR/Sqrt | some mathematical operations
+cudaAdjust | adjust image intensity values or colormap
 updating|---
 
 
