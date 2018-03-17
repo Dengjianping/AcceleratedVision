@@ -21,13 +21,19 @@ if 255 * low_in < input < 255 * high_in
 
 __device__ uchar filter_pixel(uchar pixel, float low_in, float high_in, float low_out, float high_out)
 {
-    if (pixel < low_in*255.0f)return 255.0f*low_out;
-    if (pixel > high_in*255.0f)return 255.0f*high_out;
-    else
-    {
-        uchar out = (high_out - low_out) / (high_in - low_in)*(pixel - low_in*255.0f) + 255.0f*low_out;
-        return out;
-    }
+    // if (pixel < low_in*255.0f)return 255.0f*low_out;
+    // if (pixel > high_in*255.0f)return 255.0f*high_out;
+    // else
+    // {
+    //     uchar out = (high_out - low_out) / (high_in - low_in)*(pixel - low_in*255.0f) + 255.0f*low_out;
+    //     return out;
+    // }
+
+    // use this way, there's almost no divergence, kernel execution from 5.873ms to 4.876 while using a image size 2048 * 2048
+    uchar low_cut = 255.0f*low_out*(pixel < low_in*255.0f);
+    uchar high_cut = 255.0f*high_out*(pixel > high_in*255.0f);
+    uchar between = ((high_out - low_out) / (high_in - low_in)*(pixel - low_in*255.0f) + 255.0f*low_out)*(pixel > low_in*255.0f&&pixel < high_in*255.0f);
+    return low_cut + high_cut + between;
 }
 
 
