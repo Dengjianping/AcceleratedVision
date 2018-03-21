@@ -82,6 +82,8 @@ cudaHistogram | histogram for a image
 cudaEqualizeHist | equalize a image
 cudaADD/OR/Sqrt | some mathematical operations
 cudaAdjust | adjust image intensity values or colormap
+~~cudaAntisotropy~~ | ~~reduce image noise without removing significant parts of the image content, see [reference](https://en.wikipedia.org/wiki/Anisotropic_diffusion)~~
+cudaGammaCorrection | increases or decreases gamma value of input image
 updating|---
 
 

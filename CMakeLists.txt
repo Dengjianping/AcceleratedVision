@@ -35,6 +35,8 @@ if(WIN32)
         ${PROJECT_SOURCE_DIR}/sources/cuda_laplace.cu
         ${PROJECT_SOURCE_DIR}/sources/cuda_log.cu
         ${PROJECT_SOURCE_DIR}/sources/cuda_adjust.cu
+        ${PROJECT_SOURCE_DIR}/sources/cuda_antisotropy.cu
+        ${PROJECT_SOURCE_DIR}/sources/cuda_gamma_correction.cu
     )
     target_link_libraries(accel_vision ${DEPENDENCY_LIB})
     
