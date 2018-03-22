@@ -3,15 +3,16 @@
 
 __device__ uchar4 gamma_handler(uchar4 pixels, float gamma)
 {
-    /*uchar p0 = __powf((float)pixels.x / 255.0f, gamma)*255.0f;
-    uchar p1 = __powf((float)pixels.y / 255.0f, gamma)*255.0f;
-    uchar p2 = __powf((float)pixels.z / 255.0f, gamma)*255.0f;
-    uchar p3 = __powf((float)pixels.w / 255.0f, gamma)*255.0f;*/
-    float t = fabsf(gamma - 1.0f);
-    uchar p0 = __powf((float)pixels.x, gamma)*__powf(255.0f, t);
-    uchar p1 = __powf((float)pixels.y, gamma)*__powf(255.0f, t);
-    uchar p2 = __powf((float)pixels.z, gamma)*__powf(255.0f, t);
-    uchar p3 = __powf((float)pixels.w, gamma)*__powf(255.0f, t);
+    /*
+    Actually, the equation is like this: P1(x,y) = 255.0f * expf(logf(P(x,y) / 255.0) * gamma).
+    But this will cost too many instructions and registers, so I simplified the equation:
+    P1(x, y) = 255.0f * expf((logf(P(x,y) - logf(255.0f)) * gamma).
+   */
+
+    uchar p0 = 255.0f*__expf((__logf((float)pixels.x) - 5.541f)*gamma);
+    uchar p1 = 255.0f*__expf((__logf((float)pixels.y) - 5.541f)*gamma);
+    uchar p2 = 255.0f*__expf((__logf((float)pixels.z) - 5.541f)*gamma);
+    uchar p3 = 255.0f*__expf((__logf((float)pixels.w) - 5.541f)*gamma);
 
     return make_uchar4(p0, p1, p2, p3);
 }
