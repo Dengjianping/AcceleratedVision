@@ -4,20 +4,20 @@
 #include "accel_vision.h"
 
 
-/** @brief simply get the sum of a gray image all pixels.
+/** @get sum of all pixels from a image
 
 @param input a Mat image, you better input a gray image or single channel image.
-@param sum_of_pixels the sum of all pixels.
+
 */
-CUDA_EXPORTS void cudaSum(const cv::Mat & input, int & sum_of_pixels);
+CUDA_EXPORTS int cudaSum(const cv::Mat & input);
 
 
-/** @brief simply get the mean value of a gray image all pixels.
+/** @get mean value from a image
 
 @param input a Mat image, you better input a gray image.
-@param mean_value the mean value of a gray image or single channel image.
+
 */
-CUDA_EXPORTS void cudaMeanValue(const cv::Mat & input, float & mean_value);
+CUDA_EXPORTS float cudaMean(const cv::Mat & input);
 
 
 #endif // !CUDASUM_H
