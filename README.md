@@ -84,6 +84,11 @@ cudaADD/OR/Sqrt | some mathematical operations
 cudaAdjust | adjust image intensity values or colormap
 ~~cudaAntisotropy~~ | ~~reduce image noise without removing significant parts of the image content, see [reference](https://en.wikipedia.org/wiki/Anisotropic_diffusion)~~
 cudaGammaCorrection | increases or decreases gamma value of input image
+cudaSum | the sum of all pixels/single image
+cudaMean | the mean value of all pixels/single image
+~~cudaIntegral~~ | ~~get a integral image for a single image~~
+~~cudaTranspose~~ | ~~transpose a image/single image~~
+cudaGaussianBackProjection | gaussian back projection, try test/images/2048_RGB.jpg as input, model.jpg as model
 updating|---
 
 
